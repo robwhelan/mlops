@@ -107,23 +107,24 @@ Resources:
       OnCreate:
         - Content:
             Fn::Base64: !Sub |
-              export PROJECT_NAME=${pProjectName}
-              export REPO_NAME=${rCodeCommitRepository.Name}
-              export AUTHOR=${pNotebookAuthor}
-              export DESCRIPTION=${pProjectDescription}
-              export S3_BUCKET=${pMLZoneBucket}
+              export HOME=/root/;
+              export PROJECT_NAME=${pProjectName};
+              export REPO_NAME=${rCodeCommitRepository.Name};
+              export AUTHOR=${pNotebookAuthor};
+              export DESCRIPTION=${pProjectDescription};
+              export S3_BUCKET=${pMLZoneBucket};
 
-              bash
+              bash;
 
-              cd /root/
-              pip install cookiecutter
+              echo "Configuring github for AWS credentials";
+              git config --global credential.helper '!aws codecommit credential-helper $@';
+              git config --global credential.UseHttpPath true;
 
-              echo "Configuring github for AWS credentials"
-              git config --global credential.helper '!aws codecommit credential-helper $@'
-              git config --global credential.UseHttpPath true
-
-              echo "changing directory into SageMaker and creating cookiecutter project layout"
-              cd SageMaker
+              echo "here is what I see in the directory:";
+              ls;
+              echo "changing directory into SageMaker and creating cookiecutter project layout";
+              cd /home/ec2-user/SageMaker;
+              pip install cookiecutter;
 
               cookiecutter https://github.com/drivendata/cookiecutter-data-science \
                 project_name=$PROJECT_NAME \
@@ -137,6 +138,7 @@ Resources:
                 --no-input \
                 --overwrite-if-exists
 
+              echo "cookiecutter installed, changing into repo_name"
               cd $REPO_NAME
 
               git add -A
