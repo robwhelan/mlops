@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: codecommit repo for model building notebooks.
+Parameters:
+  pProjectName:
+    Type: String
+Resources:
+  rCodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: !Sub 'Repository to keep notebooks for the #{pProjectName} project.'
+      RepositoryName: !Sub '#{pProjectName}-notebook-repository'
+Outputs:
+  oCodeCommitRepositoryHttpUrl:
+    Value: !GetAtt rCodeCommitRepository.CloneUrlHttp
+  oCodeCommitRepositoryArn:
+    Value: !GetAtt rCodeCommitRepository.Arn
+  oCodeCommitRepositoryUrlSsh:
+    Value: !GetAtt rCodeCommitRepository.UrlSsh
+  oCodeCommitRepositoryName:
+    Value: !GetAtt rCodeCommitRepository.Name

@@ -1,0 +1,158 @@
+#add lifecycle config to sagemaker notebook instance to make sure it spins up a cool project layout.
+#TODO
+#add readme instructions for source control.
+#make sure the notebook can be committed to a repo.
+#put this into source control itself.
+#tighten down sagemaker permissions to CodeCommit, sagemaker, forecast / personalize etc, and S3. and maybe step functions.
+
+#one notebook for general sm.
+AWSTemplateFormatVersion: "2010-09-09"
+Description: One notebook for managing the entire lifecycle of data prep, model build, model train, and model deployment.
+Parameters:
+#  pCodeRepositoryUrl:
+#    Type: String
+#    Description: URL of your default codecommit repo for this notebook.
+#  pCodeRepositoryName:
+#    Type: String
+#    Description: Name of your default codecommit repo for this notebook.
+#  pCuratedZoneBucket:
+#    Type: String
+  pProjectDescription:
+    Type: String
+    Description: Must be surrounded by quotes
+  pMLZoneBucket:
+    Type: String
+  pNotebookAuthor:
+    Type: String
+    Description: Must be surrounded by quotes
+  pNotebookVolumeSizeInGb:
+    Type: Number
+    Default: 20
+  pNotebookInstanceType:
+    Type: String
+    Default: ml.t3.medium
+    AllowedValues:
+      - ml.t2.large
+      - ml.t2.medium
+      - ml.t2.xlarge
+      - ml.t3.2xlarge
+      - ml.t3.large
+      - ml.t3.medium
+      - ml.t3.xlarge
+      - ml.c4.2xlarge
+      - ml.c4.4xlarge
+      - ml.c4.xlarge
+      - ml.c5.2xlarge
+      - ml.c5.4xlarge
+      - ml.c5.9xlarge
+      - ml.c5.xlarge
+      - ml.c5d.2xlarge
+      - ml.c5d.4xlarge
+      - ml.c5d.xlarge
+      - ml.m4.2xlarge
+      - ml.m4.4xlarge
+      - ml.m4.xlarge
+      - ml.m5.2xlarge
+      - ml.m5.4xlarge
+      - ml.m5.xlarge
+      - ml.p2.xlarge
+      - ml.p3.2xlarge
+      - ml.t2.2xlarge
+  pProjectName:
+    Type: String
+
+Resources:
+  #remove this and refactor later
+  rCodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryDescription: !Sub 'Repository to keep notebooks for the ${pProjectName} project.'
+      RepositoryName: !Sub '${pProjectName}-notebook-repository'
+
+  rSagemakerNotebookRepositoryAssociation:
+    Type: AWS::SageMaker::CodeRepository
+    Properties:
+      CodeRepositoryName: !GetAtt rCodeCommitRepository.Name
+      GitConfig:
+        RepositoryUrl: !GetAtt rCodeCommitRepository.CloneUrlHttp
+
+  rSagemakerInstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "sagemaker.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "*"
+                Resource: "*"
+  rSagemakerNotebookLifecycleConfig:
+    Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
+    Properties:
+      NotebookInstanceLifecycleConfigName: !Sub '${pProjectName}-notebook-lifecycle-config'
+      OnCreate:
+        - Content:
+            Fn::Base64: !Sub |
+              export PROJECT_NAME=${pProjectName}
+              export REPO_NAME=${rCodeCommitRepository.Name}
+              export AUTHOR=${pNotebookAuthor}
+              export DESCRIPTION=${pProjectDescription}
+              export S3_BUCKET=${pMLZoneBucket}
+
+              bash
+
+              cd /root/
+              pip install cookiecutter
+
+              echo "Configuring github for AWS credentials"
+              git config --global credential.helper '!aws codecommit credential-helper $@'
+              git config --global credential.UseHttpPath true
+
+              echo "changing directory into SageMaker and creating cookiecutter project layout"
+              cd SageMaker
+
+              cookiecutter https://github.com/drivendata/cookiecutter-data-science \
+                project_name=$PROJECT_NAME \
+                author_name=$AUTHOR \
+                description=$DESCRIPTION \
+                repo_name=$REPO_NAME \
+                open_source_license='MIT' \
+                s3_bucket=$S3_BUCKET \
+                aws_profile='default' \
+                python_interpreter='python3' \
+                --no-input \
+                --overwrite-if-exists
+
+              cd $REPO_NAME
+
+              git add -A
+              git commit -m "initial data project commit"
+              git push origin master
+
+  rSagemakerNotebookInstance:
+    DependsOn:
+      - rSagemakerNotebookRepositoryAssociation
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      DefaultCodeRepository: !GetAtt rSagemakerNotebookRepositoryAssociation.CodeRepositoryName
+      DirectInternetAccess: Enabled
+      InstanceType: !Ref pNotebookInstanceType
+      LifecycleConfigName:  !GetAtt rSagemakerNotebookLifecycleConfig.NotebookInstanceLifecycleConfigName
+      NotebookInstanceName: !Sub '${pProjectName}-sagemaker-notebook'
+      RoleArn: !GetAtt rSagemakerInstanceRole.Arn
+      RootAccess: Enabled
+      VolumeSizeInGB: !Ref pNotebookVolumeSizeInGb
