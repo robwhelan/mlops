@@ -118,11 +118,9 @@ Resources:
               git config --global credential.helper '!aws codecommit credential-helper $@';
               git config --global credential.UseHttpPath true;
 
-              echo "here is what I see in the directory:";
-              ls;
               echo "changing directory into SageMaker and creating cookiecutter project layout";
               cd /home/ec2-user/SageMaker;
-              echo "here is the repo url";
+
               echo $REPO_URL;
               git clone $REPO_URL;
               pip install --quiet cookiecutter;
@@ -137,12 +135,10 @@ Resources:
                 --no-input \
                 --overwrite-if-exists;
 
-              echo "cookiecutter installed, changing into repo_name, and here is the directory:";
-              ls;
               cd $REPO_NAME;
 
-              git add -A
-              git commit -m "initial data project commit"
+              git add -A;
+              git commit -m "initial data project commit";
               git push origin master;
 
   rSagemakerNotebookInstance:
