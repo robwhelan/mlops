@@ -17,14 +17,8 @@ Parameters:
 #    Description: Name of your default codecommit repo for this notebook.
 #  pCuratedZoneBucket:
 #    Type: String
-  pProjectDescription:
-    Type: String
-    Description: Must be surrounded by quotes
   pMLZoneBucket:
     Type: String
-  pNotebookAuthor:
-    Type: String
-    Description: Must be surrounded by quotes
   pNotebookVolumeSizeInGb:
     Type: Number
     Default: 20
@@ -60,6 +54,7 @@ Parameters:
       - ml.t2.2xlarge
   pProjectName:
     Type: String
+    Description: No spaces.
 
 Resources:
   #remove this and refactor later
@@ -107,12 +102,15 @@ Resources:
       OnCreate:
         - Content:
             Fn::Base64: !Sub |
+              #!/bin/bash
+              export LC_ALL=en_US.UTF-8;
+              export LANG=en_US.UTF-8;
+              export LANGUAGE=en_US.UTF-8;
               export HOME=/root/;
               export PROJECT_NAME=${pProjectName};
               export REPO_NAME=${rCodeCommitRepository.Name};
-              export AUTHOR=${pNotebookAuthor};
-              export DESCRIPTION=${pProjectDescription};
               export S3_BUCKET=${pMLZoneBucket};
+              export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
 
               bash;
 
@@ -124,26 +122,28 @@ Resources:
               ls;
               echo "changing directory into SageMaker and creating cookiecutter project layout";
               cd /home/ec2-user/SageMaker;
-              pip install cookiecutter;
+              echo "here is the repo url";
+              echo $REPO_URL;
+              git clone $REPO_URL;
+              pip install --quiet cookiecutter;
 
               cookiecutter https://github.com/drivendata/cookiecutter-data-science \
                 project_name=$PROJECT_NAME \
-                author_name=$AUTHOR \
-                description=$DESCRIPTION \
                 repo_name=$REPO_NAME \
                 open_source_license='MIT' \
                 s3_bucket=$S3_BUCKET \
                 aws_profile='default' \
                 python_interpreter='python3' \
                 --no-input \
-                --overwrite-if-exists
+                --overwrite-if-exists;
 
-              echo "cookiecutter installed, changing into repo_name"
-              cd $REPO_NAME
+              echo "cookiecutter installed, changing into repo_name, and here is the directory:";
+              ls;
+              cd $REPO_NAME;
 
               git add -A
               git commit -m "initial data project commit"
-              git push origin master
+              git push origin master;
 
   rSagemakerNotebookInstance:
     DependsOn:
