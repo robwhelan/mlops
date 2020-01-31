@@ -1,6 +1,6 @@
 export AWS_PROFILE=2ndwatch
-export STACK_NAME=mlops
-export PROJECT_NAME='robs-project'
+export STACK_NAME=mlops10
+export PROJECT_NAME='robs-project10'
 export ML_ZONE_BUCKET='2ndwatch-data-playground'
 
 export MY_STACK=$(aws cloudformation create-stack \
