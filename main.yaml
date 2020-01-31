@@ -19,6 +19,7 @@ Parameters:
 #    Type: String
   pMLZoneBucket:
     Type: String
+    Description: A staging bucket if needed for files from the Sagemaker notebook.
   pNotebookVolumeSizeInGb:
     Type: Number
     Default: 20
@@ -85,16 +86,11 @@ Resources:
             Action:
               - "sts:AssumeRole"
       Path: "/"
-      Policies:
-        -
-          PolicyName: "root"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              -
-                Effect: "Allow"
-                Action: "*"
-                Resource: "*"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess"
+        - "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+        - "arn:aws:iam::aws:policy/AmazonForecastFullAccess"
+        - 'arn:aws:iam::aws:policy/AWSCodeCommitFullAccess' #needed for repo
   rSagemakerNotebookLifecycleConfig:
     Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
     Properties:

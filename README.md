@@ -13,7 +13,7 @@ Use Glue for ETL when you need "out of the box" transformations provided by awsg
 ### Model development. Tinkering around with different models and algorithms.
 Run the main stack to create:
 (insert architecture drawing)
-- sm notebook
+- sm notebook, which includes some setup that connects it to a repo, and creates a folder layout.
 - codecommit repo.
 - step functions for monitoring things.
 
@@ -21,13 +21,16 @@ The notebook has special features:
 - it comes with a standardized folder layout. See cookiecutter / datascience.
 - it comes already connected to a repo. When you start up an instance, it completes the lifecycle config by pushing to the remote repo.
 - it has example code in it for general operations (training models, deploying models).
+- FUTURE: it has jupyter notebook plugins available for autocpomplete.
 
 ### Placing the most important work into version control: ETL.
 1. Open a terminal from Jupyter notebook. Use git commands like normal. You will be pushing to your CodeCommit repo.
-2. `cd SageMaker/(YOUR_REPO_NAME)`
-3. `git add A`
-4. `git commit -m "my commit message"`
-5. `git push origin master`
+```bash
+cd SageMaker/(YOUR_REPO_NAME)
+git add A
+git commit -m "my commit message"
+git push origin master
+```
 
 
 ## Train
