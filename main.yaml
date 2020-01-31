@@ -99,6 +99,8 @@ Resources:
         - Content:
             Fn::Base64: !Sub |
               #!/bin/bash
+              echo 'becoming the ec2-user until EOF'
+              sudo -u ec2-user -i <<'EOF'
               export LC_ALL=en_US.UTF-8;
               export LANG=en_US.UTF-8;
               export LANGUAGE=en_US.UTF-8;
@@ -114,11 +116,16 @@ Resources:
               git config --global credential.helper '!aws codecommit credential-helper $@';
               git config --global credential.UseHttpPath true;
 
+              echo 'current working directory:'
+              echo $PWD
               echo "changing directory into SageMaker and creating cookiecutter project layout";
               cd /home/ec2-user/SageMaker;
+              echo 'current working directory:'
+              echo $PWD
 
+              echo 'cloning into this repo, trying to make a folder at the same time.'
               echo $REPO_URL;
-              git clone $REPO_URL;
+              git clone $REPO_URL $REPO_NAME;
               pip install --quiet cookiecutter;
 
               cookiecutter https://github.com/drivendata/cookiecutter-data-science \
@@ -136,6 +143,9 @@ Resources:
               git add -A;
               git commit -m "initial data project commit";
               git push origin master;
+
+              echo 'reached EOF'
+              EOF
 
   rSagemakerNotebookInstance:
     DependsOn:
