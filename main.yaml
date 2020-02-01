@@ -65,7 +65,7 @@ Resources:
     Type: AWS::CodeCommit::Repository
     Properties:
       RepositoryDescription: !Sub 'Repository to keep notebooks for the ${pProjectName} project.'
-      RepositoryName: !Sub '${pProjectName}-notebook-repository'
+      RepositoryName: !Sub 'AmazonSageMaker-${pProjectName}-ntbk-repo' #MUST START WITH AMAZONSAGEMAKER
 
   rSagemakerNotebookRepositoryAssociation:
     Type: AWS::SageMaker::CodeRepository
@@ -97,52 +97,80 @@ Resources:
     Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
     Properties:
       NotebookInstanceLifecycleConfigName: !Sub '${pProjectName}-notebook-lifecycle-config'
+      OnStart:
+        - Content:
+            Fn::Base64: !Sub |
+              #!/bin/bash
+              set -e;
+              su ec2-user;
+
+              export HOME=/root/;
+              export PROJECT_NAME=${pProjectName};
+              export REPO_NAME=${rCodeCommitRepository.Name};
+              export S3_BUCKET=${pMLZoneBucket};
+              export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
+              cd /home/ec2-user/SageMaker;
+              cd $REPO_NAME;
+
+              #pull the latest?
+
+              #stop the notebook if idle for an hour.
+              export IDLE_TIME=3600
+              wget https://raw.githubusercontent.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/master/scripts/auto-stop-idle/autostop.py
+              (crontab -l 2>/dev/null; echo "5 * * * * /usr/bin/python $PWD/autostop.py --time $IDLE_TIME --ignore-connections") | crontab -
+
       OnCreate:
         - Content:
             Fn::Base64: !Sub |
-            #!/bin/bash
+              #!/bin/bash
 
-            set -e
-            su ec2-user
+              set -e;
+              su ec2-user;
 
-            export LC_ALL=en_US.UTF-8;
-            export LANG=en_US.UTF-8;
-            export LANGUAGE=en_US.UTF-8;
-            export HOME=/root/;
-            export PROJECT_NAME=${pProjectName};
-            export REPO_NAME=${rCodeCommitRepository.Name};
-            export S3_BUCKET=${pMLZoneBucket};
-            export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
+              export LC_ALL=en_US.UTF-8;
+              export LANG=en_US.UTF-8;
+              export LANGUAGE=en_US.UTF-8;
+              export HOME=/root/;
+              export PROJECT_NAME=${pProjectName};
+              export REPO_NAME=${rCodeCommitRepository.Name};
+              export S3_BUCKET=${pMLZoneBucket};
+              export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
 
-            git config --global credential.helper '!aws codecommit credential-helper $@';
-            git config --global credential.UseHttpPath true;
+              git config --global credential.helper '!aws codecommit credential-helper $@';
+              git config --global credential.UseHttpPath true;
 
-            cd /home/ec2-user/SageMaker;
-            git clone $REPO_URL;
+              cd /home/ec2-user/SageMaker;
+              git clone $REPO_URL;
 
-            pip install --upgrade cookiecutter
-            cookiecutter https://github.com/drivendata/cookiecutter-data-science \
-                  project_name=$PROJECT_NAME \
-                  repo_name=$REPO_NAME \
-                  open_source_license='MIT' \
-                  s3_bucket=$S3_BUCKET \
-                  aws_profile='default' \
-                  python_interpreter='python3' \
-                  --no-input \
-                  --overwrite-if-exists;
+              pip install --upgrade cookiecutter
+              cookiecutter https://github.com/drivendata/cookiecutter-data-science \
+                    project_name=$PROJECT_NAME \
+                    repo_name=$REPO_NAME \
+                    open_source_license='MIT' \
+                    s3_bucket=$S3_BUCKET \
+                    aws_profile='default' \
+                    python_interpreter='python3' \
+                    --no-input \
+                    --overwrite-if-exists;
 
-            cd $REPO_NAME;
-            git add -A;
-            git commit -m "initial data project commit";
-            git push origin master;
+              cd $REPO_NAME;
+              git add -A;
+              git commit -m "initial data project commit";
+              git push origin master;
 
+              #stop the notebook if idle for an hour.
+              export IDLE_TIME=3600
+              wget https://raw.githubusercontent.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/master/scripts/auto-stop-idle/autostop.py
+              (crontab -l 2>/dev/null; echo "5 * * * * /usr/bin/python $PWD/autostop.py --time $IDLE_TIME --ignore-connections") | crontab -
+
+              #install awesome extensions
 
   rSagemakerNotebookInstance:
     DependsOn:
       - rSagemakerNotebookRepositoryAssociation
     Type: AWS::SageMaker::NotebookInstance
     Properties:
-      DefaultCodeRepository: !GetAtt rSagemakerNotebookRepositoryAssociation.CodeRepositoryName
+      #DefaultCodeRepository: !GetAtt rCodeCommitRepository.Name
       DirectInternetAccess: Enabled
       InstanceType: !Ref pNotebookInstanceType
       LifecycleConfigName:  !GetAtt rSagemakerNotebookLifecycleConfig.NotebookInstanceLifecycleConfigName
