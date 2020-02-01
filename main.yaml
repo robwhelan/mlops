@@ -5,6 +5,8 @@
 #put this into source control itself.
 #tighten down sagemaker permissions to CodeCommit, sagemaker, forecast / personalize etc, and S3. and maybe step functions.
 
+#https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/tree/master/scripts
+
 #one notebook for general sm.
 AWSTemplateFormatVersion: "2010-09-09"
 Description: One notebook for managing the entire lifecycle of data prep, model build, model train, and model deployment.
@@ -98,59 +100,41 @@ Resources:
       OnCreate:
         - Content:
             Fn::Base64: !Sub |
-              #!/bin/bash
-              set -e
-              echo 'becoming the ec2-user until EOF'
-              sudo -u ec2-user -i <<'EOF'
+            #!/bin/bash
 
-              echo "Configuring github for AWS credentials";
+            set -e
+            su ec2-user
 
-              git config --global credential.helper '!aws codecommit credential-helper $@';
-              git config --global credential.UseHttpPath true;
+            export LC_ALL=en_US.UTF-8;
+            export LANG=en_US.UTF-8;
+            export LANGUAGE=en_US.UTF-8;
+            export HOME=/root/;
+            export PROJECT_NAME=${pProjectName};
+            export REPO_NAME=${rCodeCommitRepository.Name};
+            export S3_BUCKET=${pMLZoneBucket};
+            export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
 
-              echo 'getting into the sm directory'
-              cd /home/ec2-user/SageMaker;
-              echo 'current working directory:'
-              echo $PWD
+            git config --global credential.helper '!aws codecommit credential-helper $@';
+            git config --global credential.UseHttpPath true;
 
-              export LC_ALL=en_US.UTF-8;
-              export LANG=en_US.UTF-8;
-              export LANGUAGE=en_US.UTF-8;
-              export HOME=/root/;
-              export PROJECT_NAME=${pProjectName};
-              export REPO_NAME=${rCodeCommitRepository.Name};
-              export S3_BUCKET=${pMLZoneBucket};
-              export REPO_URL=${rCodeCommitRepository.CloneUrlHttp}
+            cd /home/ec2-user/SageMaker;
+            git clone $REPO_URL;
 
-              pip install --quiet cookiecutter;
-              pip install --quiet jupyter_contrib_nbextensions;
+            pip install --upgrade cookiecutter
+            cookiecutter https://github.com/drivendata/cookiecutter-data-science \
+                  project_name=$PROJECT_NAME \
+                  repo_name=$REPO_NAME \
+                  open_source_license='MIT' \
+                  s3_bucket=$S3_BUCKET \
+                  aws_profile='default' \
+                  python_interpreter='python3' \
+                  --no-input \
+                  --overwrite-if-exists;
 
-              cookiecutter https://github.com/drivendata/cookiecutter-data-science \
-                project_name=$PROJECT_NAME \
-                repo_name=$REPO_NAME \
-                open_source_license='MIT' \
-                s3_bucket=$S3_BUCKET \
-                aws_profile='default' \
-                python_interpreter='python3' \
-                --no-input \
-                --overwrite-if-exists;
-
-              echo 'list of files:';
-              ls;
-              echo 'cloning into repo'
-              git clone $REPO_URL;
-              echo 'changing into repo'
-              cd $REPO_NAME;
-
-              jupyter contrib nbextension install
-              jupyter nbextension enable codefolding/main
-              echo 'reached EOF'
-              EOF
-              echo $PWD
-              echo 'trying to push to git, project 6'
-              git add -A;
-              git commit -m "initial data project commit";
-              git push origin master;
+            cd $REPO_NAME;
+            git add -A;
+            git commit -m "initial data project commit";
+            git push origin master;
 
 
   rSagemakerNotebookInstance:
