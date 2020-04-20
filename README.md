@@ -10,6 +10,11 @@ When building, the following steps are necessary usually.
 ### Deciding on and productionizing data preprocessing steps - where does ETL for analytics end, and ETL for machine learning start?
 Use Glue for ETL when you need "out of the box" transformations provided by awsglue.
 
+### SageMaker Environment setup.
+```bash
+bash setup-mlops.sh
+```
+
 ### Model development. Tinkering around with different models and algorithms.
 Run the main stack to create:
 (insert architecture drawing)

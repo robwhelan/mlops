@@ -158,6 +158,8 @@ Resources:
               git commit -m "initial data project commit";
               git push origin master;
 
+              chmod -R 777 .
+
               #stop the notebook if idle for an hour.
               export IDLE_TIME=3600
               wget https://raw.githubusercontent.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/master/scripts/auto-stop-idle/autostop.py
